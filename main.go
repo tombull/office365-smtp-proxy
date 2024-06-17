@@ -27,7 +27,10 @@ func main() {
 	viper.BindPFlags(pflag.CommandLine)
 
 	// set up backend
-	be := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+	be, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// set up server
 	s := smtp.NewServer(be)
