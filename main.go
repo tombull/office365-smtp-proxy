@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"log"
+	"log/slog"
+	"os"
 
 	"github.com/andrewheberle/graph-smtpd/pkg/graphserver"
 	"github.com/cloudflare/certinel/fswatcher"
@@ -14,6 +16,9 @@ import (
 )
 
 func main() {
+	// general options
+	pflag.Bool("debug", false, "Enable debug mode")
+
 	// SMTP options
 	pflag.String("addr", "localhost:2525", "Service listen address")
 	pflag.String("domain", "localhost", "Service domain/hostname")
@@ -37,10 +42,25 @@ func main() {
 	viper.BindPFlags(pflag.CommandLine)
 
 	// set up backend
-	be, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
-	if err != nil {
-		log.Fatal(err)
+	var be *graphserver.Backend
+
+	if viper.GetBool("debug") {
+		b, err := graphserver.NewDebugGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+		if err != nil {
+			slog.Error("error setting up backend", "error", err)
+			os.Exit(1)
+		}
+		be = b
+	} else {
+		b, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+		if err != nil {
+			slog.Error("error setting up backend", "error", err)
+			os.Exit(1)
+		}
+		be = b
 	}
+
+	slog.Info("graph backend created")
 
 	// set up server
 	s := smtp.NewServer(be)
@@ -90,6 +110,8 @@ func main() {
 			s.Close()
 		})
 	}
+
+	slog.Info("starting up")
 
 	if err := g.Run(); err != nil {
 		log.Fatal(err)
