@@ -3,10 +3,14 @@ package graphserver
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"mime"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net/mail"
 	"strings"
 
@@ -18,6 +22,7 @@ import (
 )
 
 type Session struct {
+	from   string
 	user   *users.UserItemRequestBuilder
 	client *graph.GraphServiceClient
 }
@@ -60,6 +65,8 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 		return nil
 	}
 
+	s.from = from
+
 	// see if user exists
 	return fmt.Errorf("user not found")
 }
@@ -94,6 +101,19 @@ func (s *Session) Data(r io.Reader) error {
 	message.SetCcRecipients(parseAddressList(header.Get("Cc")))
 	message.SetBccRecipients(parseAddressList(header.Get("Bcc")))
 
+	// add sender/from
+	recipient := models.NewRecipient()
+	emailAddress := models.NewEmailAddress()
+	emailAddress.SetAddress(&s.from)
+	recipient.SetEmailAddress(emailAddress)
+	message.SetFrom(recipient)
+
+	// handle any attachments
+	if attachments, err := parseAttachments(msg); err == nil && len(attachments) > 0 {
+		message.SetAttachments(attachments)
+	}
+
+	// create sendMail request
 	requestBody := users.NewItemSendmailSendMailPostRequestBody()
 	requestBody.SetMessage(message)
 
@@ -130,4 +150,78 @@ func parseAddressList(addresses string) []models.Recipientable {
 	}
 
 	return recipientList
+}
+
+func parseAttachments(msg *mail.Message) ([]models.Attachmentable, error) {
+	attachmentsList := []models.Attachmentable{}
+
+	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
+	if err != nil {
+		return attachmentsList, err
+	}
+
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		return attachmentsList, nil
+	}
+
+	reader := multipart.NewReader(msg.Body, params["boundary"])
+	if reader == nil {
+		return attachmentsList, fmt.Errorf("cloud not create multipart reader")
+	}
+
+	for {
+		newPart, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return attachmentsList, err
+		}
+
+		partData, err := io.ReadAll(newPart)
+		if err != nil {
+			return attachmentsList, err
+		}
+
+		cte := strings.ToUpper(newPart.Header.Get("Content-Transfer-Encoding"))
+		var decoded []byte
+
+		switch {
+		case strings.Compare(cte, "BASE64") == 0:
+			var err error
+
+			decoded, err = base64.StdEncoding.DecodeString(string(partData))
+			if err != nil {
+				return attachmentsList, err
+			}
+		case strings.Compare(cte, "QUOTED-PRINTABLE") == 0:
+			var err error
+
+			decoded, err = io.ReadAll(quotedprintable.NewReader(bytes.NewReader(partData)))
+			if err != nil {
+				return attachmentsList, err
+			}
+
+		default:
+			decoded = partData
+		}
+
+		// encode to BASE64
+		dst := make([]byte, base64.StdEncoding.EncodedLen(len(decoded)))
+		base64.StdEncoding.Encode(dst, decoded)
+
+		// create attachment
+		filename := newPart.FileName()
+		contentType := newPart.Header.Get("Content-Type")
+		attachment := models.NewFileAttachment()
+		attachment.SetName(&filename)
+		attachment.SetContentType(&contentType)
+		attachment.SetContentBytes(dst)
+
+		// add to attachmentsList
+		attachmentsList = append(attachmentsList, attachment)
+	}
+
+	return attachmentsList, nil
 }
