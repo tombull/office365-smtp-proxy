@@ -18,6 +18,7 @@ The idea is to allow this service to run locally and accept emails from devices/
 
 ### Command-Line Options
 
+* `--addr`: Listen address (default = "localhost:2525")
 * `--clientid`: App Registration Client/App ID
 * `--secret`: Client Secret
 * `--tenantid`: Tenant ID
