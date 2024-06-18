@@ -11,7 +11,7 @@ The idea is to allow this service to run locally and accept emails from devices/
 1. Create an "App Registration"
 2. Note down the Client/Application ID and Tenant ID
 3. Create a Client Secret and record the value
-4. Grant the application "mail.send" API permission
+4. Grant the application "mail.send" API permission (TODO: look into less privileged options here, as this allows sending as any user)
 5. Grant Admin Consent for the API permissions
 
 ## Running
