@@ -43,4 +43,5 @@ Based on limited testing, sending of plain text emails with or without an attach
 * Logging
 * Message queueing (if this is even a good idea)
 * SMTP authentication
-* Allow running as a service
+* Allow running as a service on Windows
+* Access/Relay controls
