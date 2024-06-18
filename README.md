@@ -10,7 +10,7 @@ The idea is to allow this service to run locally and accept emails from devices/
 
 1. Create an "App Registration"
 2. Note down the Client/Application ID and Tenant ID
-3. Create a Client Secret and record tge value
+3. Create a Client Secret and record the value
 4. Grant the application "mail.send" API permission
 5. Grant Admin Consent for the API permissions
 
@@ -19,7 +19,9 @@ The idea is to allow this service to run locally and accept emails from devices/
 ### Command-Line Options
 
 * `--addr`: Listen address (default = "localhost:2525")
-* `--clientid`: App Registration Client/App ID
+* `--cert`: Certificate for enabling TLS
+* `--clientid`: Client/Application ID
+* `--key`: Private key for enabling TLS
 * `--secret`: Client Secret
 * `--tenantid`: Tenant ID
 
