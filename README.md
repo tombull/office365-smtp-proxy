@@ -17,8 +17,9 @@ Based on limited testing, sending of plain text emails with or without an attach
 * Multiple attachments
 * CC/BCC
 
-## What needs more work
+## TODO
 
 * Logging
 * Message queueing (if this is even a good idea)
 * SMTP authentication
+* Allow running as a service
