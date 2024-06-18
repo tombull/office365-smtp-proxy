@@ -6,18 +6,36 @@ The planned functionality of this service is a SMTP daemon that will accept emai
 
 The idea is to allow this service to run locally and accept emails from devices/systems that cannot support the modern authentication requirements of Exchange Online, such as OAuth2, and then relay them securely to Microsoft 365.
 
-## What works
+## Azure AD/Entra ID Requirements
+
+1. Create an "App Registration"
+2. Note down the Client/Application ID and Tenant ID
+3. Create a Client Secret and record tge value
+4. Grant the application "mail.send" API permission
+5. Grant Admin Consent for the API permissions
+
+## Running
+
+### Command-Line Options
+
+`--clientid`: App Registration Client/App ID
+`--secret`: Client Secret
+`--tenantid`: Tenant ID
+
+## Status
+
+### What works
 
 Based on limited testing, sending of plain text emails with or without an attachment works correctly.
 
-## Untested
+### Untested
 
 * HTML emails
 * Multiple recipients
 * Multiple attachments
 * CC/BCC
 
-## TODO
+### TODO
 
 * Logging
 * Message queueing (if this is even a good idea)
