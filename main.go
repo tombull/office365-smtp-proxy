@@ -38,10 +38,24 @@ func main() {
 	pflag.String("secret", "", "App Registration Client Secret")
 	pflag.Parse()
 
+	// set up logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	// viper setup
 	viper.SetEnvPrefix("smtpd")
 	viper.AutomaticEnv()
 	viper.BindPFlags(pflag.CommandLine)
+
+	// load config file
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			logger.Info("running without config")
+		} else {
+			logger.Error("config file was invalid", "error", err)
+		}
+	}
 
 	// set up backend
 	var be *graphserver.Backend
@@ -62,8 +76,7 @@ func main() {
 		be = b
 	}
 
-	// add logging
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	// add logging to backend
 	be.SessionLog = logger
 
 	// add access control
