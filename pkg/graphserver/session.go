@@ -10,20 +10,9 @@ import (
 
 	"github.com/OfimaticSRL/parsemail"
 	"github.com/emersion/go-smtp"
-	graph "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
-
-type Session struct {
-	from           string
-	user           *users.UserItemRequestBuilder
-	client         *graph.GraphServiceClient
-	debug          bool
-	SessionLog     *slog.Logger
-	logLevel       slog.Level
-	allowedSenders []string
-}
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	if s.SessionLog != nil {

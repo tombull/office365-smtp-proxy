@@ -2,7 +2,6 @@ package graphserver
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"slices"
 
@@ -10,14 +9,6 @@ import (
 	"github.com/emersion/go-smtp"
 	graph "github.com/microsoftgraph/msgraph-sdk-go"
 )
-
-type Backend struct {
-	client         *graph.GraphServiceClient
-	debug          bool
-	SessionLog     *slog.Logger
-	allowedSenders []string
-	allowedSources []string
-}
 
 // NewGraphBackend sets up a new server
 func NewGraphBackend(clientId, tenantId, secret string) (*Backend, error) {
