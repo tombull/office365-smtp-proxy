@@ -1,6 +1,6 @@
 # graph-smtpd
 
-**This is a work in progress and not yet fully functional**
+**This is a work in progress and although it is functional, it may contain bugs. Use at your own risk**
 
 The planned functionality of this service is a SMTP daemon that will accept emails via SMTP and then submit them via the Microsoft Graph API to Microsoft 365, however in theory the submission process could be generalised to support any API driven email submission service.
 
@@ -32,16 +32,32 @@ This will limit the service to being able to send only as the members of the pro
 
 ## Running
 
+### Docker
+
+```sh
+docker run -p 25:2525 \
+    -e SMTPD_CLIENTID="clientid" \
+    -e SMTPD_SECRET="secret" \
+    -e SMTPD_TENANTID="tenantid" \
+    ghcr.io/andrewheberle/graph-smtpd:v0.1.1
+```
+
 ### Command-Line Options
 
 * `--addr`: Listen address (default = "localhost:2525")
-* `--cert`: Certificate for enabling TLS
+* `--cert`: Certificate for enabling STARTTLS
 * `--clientid`: Client/Application ID
-* `--key`: Private key for enabling TLS
+* `--key`: Private key for enabling STARTTLS
 * `--secret`: Client Secret
 * `--senders`: Allowed senders
 * `--sources`: Allowed source IP addresses
 * `--tenantid`: Tenant ID
+
+All command line options may be specified as environment variables in the form of `SMTPD_<option>`.
+
+### Configuration File
+
+All configuration options may be provided in a YAML or JSON configuration file that may be provided using the `--config` option or will be looked for in the current working directory as `config.<yaml|json>`.
 
 ## Status
 

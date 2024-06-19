@@ -17,6 +17,7 @@ import (
 func main() {
 	// general options
 	pflag.Bool("debug", false, "Enable debug mode")
+	pflag.String("config", "", "Configuration file")
 
 	// SMTP options
 	pflag.String("addr", "localhost:2525", "Service listen address")
@@ -29,8 +30,8 @@ func main() {
 	pflag.StringSlice("sources", []string{}, "Source IP addresses allowed to relay")
 
 	// TLS options
-	pflag.String("cert", "", "TLS certificate")
-	pflag.String("key", "", "TLS key")
+	pflag.String("cert", "", "TLS certificate for STARTTLS")
+	pflag.String("key", "", "TLS key for STARTTLS")
 
 	// Entra ID options
 	pflag.String("clientid", "", "App Registration Client/Application ID")
@@ -47,13 +48,24 @@ func main() {
 	viper.BindPFlags(pflag.CommandLine)
 
 	// load config file
-	viper.SetConfigName("config")
-	viper.AddConfigPath(".")
+	config := viper.GetString("config")
+	if config != "" {
+		viper.SetConfigFile(config)
+	} else {
+		viper.SetConfigName("config")
+		viper.AddConfigPath(".")
+	}
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			logger.Info("running without config")
+			if config != "" {
+				logger.Error("config file not found", "error", err, "config", config)
+				os.Exit(1)
+			} else {
+				logger.Info("running without config")
+			}
 		} else {
 			logger.Error("config file was invalid", "error", err, "config", viper.ConfigFileUsed())
+			os.Exit(1)
 		}
 	} else {
 		logger.Error("config file loaded", "config", viper.ConfigFileUsed())
