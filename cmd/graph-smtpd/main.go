@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"log/slog"
 	"os"
 
@@ -22,9 +21,12 @@ func main() {
 	// SMTP options
 	pflag.String("addr", "localhost:2525", "Service listen address")
 	pflag.String("domain", "localhost", "Service domain/hostname")
-	pflag.Bool("insecure", false, "Allow insecure authentication methods")
 	pflag.Int("recipients", 10, "Maximum message recipients")
 	pflag.Int64("max", 1024*1024, "Maximum message size in bytes")
+
+	// Access controls
+	pflag.StringSlice("senders", []string{}, "List of allowed senders")
+	pflag.StringSlice("sources", []string{}, "Source IP addresses allowed to relay")
 
 	// TLS options
 	pflag.String("cert", "", "TLS certificate")
@@ -60,13 +62,20 @@ func main() {
 		be = b
 	}
 
-	slog.Info("graph backend created")
+	// add logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	be.SessionLog = logger
+
+	// add access control
+	be.SetAllowedSenders(viper.GetStringSlice("senders"))
+	be.SetAllowedSources(viper.GetStringSlice("sources"))
+
+	logger.Info("graph backend created")
 
 	// set up server
 	s := smtp.NewServer(be)
 	s.Addr = viper.GetString("addr")
 	s.Domain = viper.GetString("domain")
-	s.AllowInsecureAuth = viper.GetBool("insecure")
 	s.MaxRecipients = viper.GetInt("recipients")
 	s.MaxMessageBytes = viper.GetInt64("max")
 
@@ -78,13 +87,18 @@ func main() {
 
 		certinel, err := fswatcher.New(viper.GetString("cert"), viper.GetString("key"))
 		if err != nil {
-			log.Fatal(err)
+			logger.Error("could not set up certinel", "error", err, "cert", viper.GetString("cert"), "key", viper.GetString("key"))
+			os.Exit(1)
 		}
 
 		// add certinel
 		g.Add(func() error {
+			logger.Info("starting up", "from", "certificate watcher", "cert", viper.GetString("cert"), "key", viper.GetString("key"))
 			return certinel.Start(ctx)
 		}, func(err error) {
+			if err != nil {
+				logger.Error("error on exit", "from", "certificate watcher", "error", err)
+			}
 			cancel()
 		})
 
@@ -92,28 +106,23 @@ func main() {
 		s.TLSConfig = &tls.Config{
 			GetCertificate: certinel.GetCertificate,
 		}
-
-		// allow insecure auth always via TLS
-		s.AllowInsecureAuth = true
-
-		// add TLS enabled server
-		g.Add(func() error {
-			return s.ListenAndServeTLS()
-		}, func(err error) {
-			s.Close()
-		})
-	} else {
-		// add non TLS enabled server
-		g.Add(func() error {
-			return s.ListenAndServe()
-		}, func(err error) {
-			s.Close()
-		})
 	}
 
-	slog.Info("starting up")
+	// add SMTP server
+	g.Add(func() error {
+		logger.Info("starting up", "from", "SMTP server", "addr", viper.GetString("addr"), "domain", viper.GetString("domain"))
+		return s.ListenAndServe()
+	}, func(err error) {
+		if err != nil {
+			logger.Error("error on exit", "from", "SMTP server", "error", err)
+		}
+		s.Close()
+	})
+
+	logger.Info("starting components")
 
 	if err := g.Run(); err != nil {
-		log.Fatal(err)
+		logger.Error("run group error", "error", err)
+		os.Exit(1)
 	}
 }

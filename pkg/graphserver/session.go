@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/OfimaticSRL/parsemail"
@@ -15,28 +16,37 @@ import (
 )
 
 type Session struct {
-	from   string
-	user   *users.UserItemRequestBuilder
-	client *graph.GraphServiceClient
-	debug  bool
-}
-
-type Message struct {
-	From    string   `json:"from"`
-	To      []string `json:"toRecipients"`
-	Cc      []string `json:"ccRecipients"`
-	Bcc     []string `json:"bccRecipients"`
-	Subject string   `json:"subject"`
-	Sender  string   `json:"sender"`
-	Date    string   `json:"sentDateTime"`
-	Body    string   `json:"body"`
+	from           string
+	user           *users.UserItemRequestBuilder
+	client         *graph.GraphServiceClient
+	debug          bool
+	SessionLog     *slog.Logger
+	logLevel       slog.Level
+	allowedSenders []string
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	slog.Info("MAIL FROM", "from", from)
+	if s.SessionLog != nil {
+		s.SessionLog = s.SessionLog.With("from", from)
+	}
 
 	if s.client == nil {
+		if s.SessionLog != nil {
+			s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("graph client not initialised"))
+		}
+		s.logLevel = slog.LevelError
 		return fmt.Errorf("graph client not initialised")
+	}
+
+	// check that sender is allowed
+	if len(s.allowedSenders) > 0 {
+		if _, found := slices.BinarySearch(s.allowedSenders, from); !found {
+			if s.SessionLog != nil {
+				s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("sender not allowed"))
+			}
+			s.logLevel = slog.LevelError
+			return fmt.Errorf("sender not allowed")
+		}
 	}
 
 	// get UserItemRequestBuilder
@@ -47,21 +57,29 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 
 	s.from = from
 
-	// see if user exists
+	// Some error creating user object
+	if s.SessionLog != nil {
+		s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("user not found"))
+	}
+	s.logLevel = slog.LevelError
 	return fmt.Errorf("user not found")
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	slog.Info("RCPT TO", "to", to)
+	if s.SessionLog != nil {
+		s.SessionLog = s.SessionLog.With("to", to)
+	}
 	return nil
 }
 
 func (s *Session) Data(r io.Reader) error {
-	slog.Info("DATA")
-
 	// parse incoming message
 	msg, err := parsemail.Parse(r)
 	if err != nil {
+		if s.SessionLog != nil {
+			s.SessionLog = s.SessionLog.With("dataerror", err)
+			s.logLevel = slog.LevelError
+		}
 		return err
 	}
 
@@ -104,6 +122,10 @@ func (s *Session) Data(r io.Reader) error {
 	for _, a := range msg.Attachments {
 		data, err := io.ReadAll(a.Data)
 		if err != nil {
+			if s.SessionLog != nil {
+				s.SessionLog = s.SessionLog.With("dataerror", err)
+				s.logLevel = slog.LevelError
+			}
 			return err
 		}
 		attachment := models.NewFileAttachment()
@@ -125,10 +147,36 @@ func (s *Session) Data(r io.Reader) error {
 	requestBody.SetMessage(message)
 
 	// send it
-	return s.user.SendMail().Post(context.Background(), requestBody, nil)
+	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
+		if s.SessionLog != nil {
+			s.SessionLog = s.SessionLog.With("dataerror", err)
+			s.logLevel = slog.LevelError
+		}
+		return err
+	}
+
+	if s.SessionLog != nil {
+		s.SessionLog = s.SessionLog.With("status", "message sent")
+		if s.logLevel < slog.LevelInfo {
+			s.logLevel = slog.LevelInfo
+		}
+	}
+
+	return nil
 }
 
-func (s *Session) Reset() {}
+func (s *Session) Reset() {
+	if s.SessionLog != nil {
+		switch s.logLevel {
+		case slog.LevelError:
+			s.SessionLog.Error("session ended")
+		case slog.LevelInfo:
+			s.SessionLog.Info("session ended")
+		case slog.LevelWarn:
+			s.SessionLog.Warn("session ended")
+		}
+	}
+}
 
 func (s *Session) Logout() error {
 	return nil
