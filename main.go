@@ -53,8 +53,10 @@ func main() {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			logger.Info("running without config")
 		} else {
-			logger.Error("config file was invalid", "error", err)
+			logger.Error("config file was invalid", "error", err, "config", viper.ConfigFileUsed())
 		}
+	} else {
+		logger.Error("config file loaded", "config", viper.ConfigFileUsed())
 	}
 
 	// set up backend
