@@ -10,18 +10,30 @@ import (
 
 	"github.com/OfimaticSRL/parsemail"
 	"github.com/emersion/go-smtp"
+	graph "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
+type Session struct {
+	from            string
+	user            *users.UserItemRequestBuilder
+	client          *graph.GraphServiceClient
+	debug           bool
+	saveToSentItems bool
+	logger          *slog.Logger
+	logLevel        slog.Level
+	allowedSenders  []string
+}
+
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	if s.SessionLog != nil {
-		s.SessionLog = s.SessionLog.With("from", from)
+	if s.logger != nil {
+		s.logger = s.logger.With("from", from)
 	}
 
 	if s.client == nil {
-		if s.SessionLog != nil {
-			s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("graph client not initialised"))
+		if s.logger != nil {
+			s.logger = s.logger.With("mailerror", fmt.Errorf("graph client not initialised"))
 		}
 		s.logLevel = slog.LevelError
 		return fmt.Errorf("graph client not initialised")
@@ -30,8 +42,8 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	// check that sender is allowed
 	if len(s.allowedSenders) > 0 {
 		if _, found := slices.BinarySearch(s.allowedSenders, from); !found {
-			if s.SessionLog != nil {
-				s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("sender not allowed"))
+			if s.logger != nil {
+				s.logger = s.logger.With("mailerror", fmt.Errorf("sender not allowed"))
 			}
 			s.logLevel = slog.LevelError
 			return fmt.Errorf("sender not allowed")
@@ -47,16 +59,16 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	s.from = from
 
 	// Some error creating user object
-	if s.SessionLog != nil {
-		s.SessionLog = s.SessionLog.With("mailerror", fmt.Errorf("user not found"))
+	if s.logger != nil {
+		s.logger = s.logger.With("mailerror", fmt.Errorf("user not found"))
 	}
 	s.logLevel = slog.LevelError
 	return fmt.Errorf("user not found")
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	if s.SessionLog != nil {
-		s.SessionLog = s.SessionLog.With("to", to)
+	if s.logger != nil {
+		s.logger = s.logger.With("to", to)
 	}
 	return nil
 }
@@ -65,8 +77,8 @@ func (s *Session) Data(r io.Reader) error {
 	// parse incoming message
 	msg, err := parsemail.Parse(r)
 	if err != nil {
-		if s.SessionLog != nil {
-			s.SessionLog = s.SessionLog.With("dataerror", err)
+		if s.logger != nil {
+			s.logger = s.logger.With("dataerror", err)
 			s.logLevel = slog.LevelError
 		}
 		return err
@@ -111,8 +123,8 @@ func (s *Session) Data(r io.Reader) error {
 	for _, a := range msg.Attachments {
 		data, err := io.ReadAll(a.Data)
 		if err != nil {
-			if s.SessionLog != nil {
-				s.SessionLog = s.SessionLog.With("dataerror", err)
+			if s.logger != nil {
+				s.logger = s.logger.With("dataerror", err)
 				s.logLevel = slog.LevelError
 			}
 			return err
@@ -134,18 +146,19 @@ func (s *Session) Data(r io.Reader) error {
 	// create sendMail request
 	requestBody := users.NewItemSendmailSendMailPostRequestBody()
 	requestBody.SetMessage(message)
+	requestBody.SetSaveToSentItems(&s.saveToSentItems)
 
 	// send it
 	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
-		if s.SessionLog != nil {
-			s.SessionLog = s.SessionLog.With("dataerror", err)
+		if s.logger != nil {
+			s.logger = s.logger.With("dataerror", err)
 			s.logLevel = slog.LevelError
 		}
 		return err
 	}
 
-	if s.SessionLog != nil {
-		s.SessionLog = s.SessionLog.With("status", "message sent")
+	if s.logger != nil {
+		s.logger = s.logger.With("status", "message sent")
 		if s.logLevel < slog.LevelInfo {
 			s.logLevel = slog.LevelInfo
 		}
@@ -155,14 +168,14 @@ func (s *Session) Data(r io.Reader) error {
 }
 
 func (s *Session) Reset() {
-	if s.SessionLog != nil {
+	if s.logger != nil {
 		switch s.logLevel {
 		case slog.LevelError:
-			s.SessionLog.Error("session ended")
+			s.logger.Error("session ended")
 		case slog.LevelInfo:
-			s.SessionLog.Info("session ended")
+			s.logger.Info("session ended")
 		case slog.LevelWarn:
-			s.SessionLog.Warn("session ended")
+			s.logger.Warn("session ended")
 		}
 	}
 }

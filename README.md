@@ -39,19 +39,20 @@ docker run -p 25:2525 \
     -e SMTPD_CLIENTID="clientid" \
     -e SMTPD_SECRET="secret" \
     -e SMTPD_TENANTID="tenantid" \
-    ghcr.io/andrewheberle/graph-smtpd:v0.1.1
+    ghcr.io/andrewheberle/graph-smtpd:v0.2.0
 ```
 
 ### Command-Line Options
 
-* `--addr`: Listen address (default = "localhost:2525")
-* `--cert`: Certificate for enabling STARTTLS
-* `--clientid`: Client/Application ID
-* `--key`: Private key for enabling STARTTLS
-* `--secret`: Client Secret
-* `--senders`: Allowed senders
-* `--sources`: Allowed source IP addresses
-* `--tenantid`: Tenant ID
+* `--addr`: Listen address (default = "localhost:2525") (string)
+* `--cert`: Certificate for enabling STARTTLS (string)
+* `--clientid`: Client/Application ID (string)
+* `--key`: Private key for enabling STARTTLS (string)
+* `--sentitems`: Save to senders sent items (bool)
+* `--secret`: Client Secret (string)
+* `--senders`: Allowed senders ([]string)
+* `--sources`: Allowed source IP addresses ([]string)
+* `--tenantid`: Tenant ID (string)
 
 All command line options may be specified as environment variables in the form of `SMTPD_<option>`.
 

@@ -24,6 +24,7 @@ func main() {
 	pflag.String("domain", "localhost", "Service domain/hostname")
 	pflag.Int("recipients", 10, "Maximum message recipients")
 	pflag.Int64("max", 1024*1024, "Maximum message size in bytes")
+	pflag.Bool("sentitems", false, "Save to sent items in senders mailbox")
 
 	// Access controls
 	pflag.StringSlice("senders", []string{}, "List of allowed senders")
@@ -74,28 +75,30 @@ func main() {
 	// set up backend
 	var be *graphserver.Backend
 
+	// set backend options
+	opts := []graphserver.BackendOption{
+		graphserver.WithAllowedSenders(viper.GetStringSlice("senders")),
+		graphserver.WithAllowedSources(viper.GetStringSlice("sources")),
+		graphserver.WithSaveToSentItems(viper.GetBool("sentitems")),
+		graphserver.WithLogger(logger),
+	}
+
+	// create backend
 	if viper.GetBool("debug") {
-		b, err := graphserver.NewDebugGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+		b, err := graphserver.NewDebugGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
 		if err != nil {
 			slog.Error("error setting up backend", "error", err)
 			os.Exit(1)
 		}
 		be = b
 	} else {
-		b, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"))
+		b, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
 		if err != nil {
 			slog.Error("error setting up backend", "error", err)
 			os.Exit(1)
 		}
 		be = b
 	}
-
-	// add logging to backend
-	be.SessionLog = logger
-
-	// add access control
-	be.SetAllowedSenders(viper.GetStringSlice("senders"))
-	be.SetAllowedSources(viper.GetStringSlice("sources"))
 
 	logger.Info("graph backend created")
 
