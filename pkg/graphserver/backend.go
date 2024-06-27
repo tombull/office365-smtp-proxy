@@ -2,7 +2,6 @@ package graphserver
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"slices"
 
@@ -15,18 +14,13 @@ type Backend struct {
 	client          *graph.GraphServiceClient
 	debug           bool
 	saveToSentItems bool
-	logger          *slog.Logger
+	logger          Logger
 	allowedSenders  []string
 	allowedSources  []string
 }
 
 // NewGraphBackend sets up a new server
 func NewGraphBackend(clientId, tenantId, secret string, opts ...BackendOption) (*Backend, error) {
-	return newbackend(clientId, tenantId, secret, opts...)
-}
-
-// NewDebugGraphBackend sets up a new server
-func NewDebugGraphBackend(clientId, tenantId, secret string, opts ...BackendOption) (*Backend, error) {
 	return newbackend(clientId, tenantId, secret, opts...)
 }
 
@@ -65,11 +59,6 @@ func newbackend(clientId, tenantId, secret string, opts ...BackendOption) (*Back
 
 // NewSession is called after client greeting (EHLO, HELO).
 func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
-	logger := b.logger
-	if logger != nil {
-		logger = logger.With("helo", c.Hostname()).With("remote", c.Conn().RemoteAddr().String())
-	}
-
 	// Check if IP is allowed
 	if len(b.allowedSources) > 0 {
 		if addr, _, err := net.SplitHostPort(c.Conn().RemoteAddr().String()); err == nil {
@@ -79,12 +68,15 @@ func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
 		}
 	}
 
+	// return new session
 	return &Session{
 		client:          b.client,
-		debug:           b.debug,
-		logger:          logger,
+		logger:          b.logger,
 		allowedSenders:  b.allowedSenders,
 		saveToSentItems: b.saveToSentItems,
+		helo:            c.Hostname(),
+		remote:          c.Conn().RemoteAddr().String(),
+		errors:          make([]error, 0),
 	}, nil
 }
 
@@ -120,7 +112,7 @@ func WithAllowedSources(sources []string) BackendOption {
 	}
 }
 
-func WithLogger(logger *slog.Logger) BackendOption {
+func WithLogger(logger Logger) BackendOption {
 	return func(b *Backend) {
 		b.logger = logger
 	}
