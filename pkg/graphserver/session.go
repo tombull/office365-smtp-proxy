@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/OfimaticSRL/parsemail"
+	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/emersion/go-smtp"
 	graph "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/microsoftgraph/msgraph-sdk-go/models"
@@ -91,7 +92,21 @@ func (s *Session) Data(r io.Reader) error {
 	to := header.Get("To")
 	cc := header.Get("Cc")
 	bcc := header.Get("Bcc")
-	body := models.NewItemBody()
+
+	requestBody, err := sendmail.NewMessage(from, to, subject,
+		sendmail.WithCc(cc),
+		sendmail.WithBcc(bcc),
+		sendmail.WithAttachments(msg.Attachments),
+		sendmail.WithSaveToSentItems(s.saveToSentItems),
+	).SendMailPostRequestBody()
+	if err != nil {
+		if s.logger != nil {
+			s.logger = s.logger.With("dataerror", err)
+			s.logLevel = slog.LevelError
+		}
+		return err
+	}
+	/* body := models.NewItemBody()
 	body.SetContent(&msg.TextBody)
 
 	// build the message
@@ -146,7 +161,7 @@ func (s *Session) Data(r io.Reader) error {
 	// create sendMail request
 	requestBody := users.NewItemSendmailSendMailPostRequestBody()
 	requestBody.SetMessage(message)
-	requestBody.SetSaveToSentItems(&s.saveToSentItems)
+	requestBody.SetSaveToSentItems(&s.saveToSentItems) */
 
 	// send it
 	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
