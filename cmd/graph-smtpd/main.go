@@ -72,9 +72,6 @@ func main() {
 		logger.Error("config file loaded", "config", viper.ConfigFileUsed())
 	}
 
-	// set up backend
-	var be *graphserver.Backend
-
 	// set backend options
 	opts := []graphserver.BackendOption{
 		graphserver.WithAllowedSenders(viper.GetStringSlice("senders")),
@@ -84,20 +81,10 @@ func main() {
 	}
 
 	// create backend
-	if viper.GetBool("debug") {
-		b, err := graphserver.NewDebugGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
-		if err != nil {
-			slog.Error("error setting up backend", "error", err)
-			os.Exit(1)
-		}
-		be = b
-	} else {
-		b, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
-		if err != nil {
-			slog.Error("error setting up backend", "error", err)
-			os.Exit(1)
-		}
-		be = b
+	be, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
+	if err != nil {
+		slog.Error("error setting up backend", "error", err)
+		os.Exit(1)
 	}
 
 	logger.Info("graph backend created")

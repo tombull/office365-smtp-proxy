@@ -2,9 +2,8 @@ package graphserver
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
-	"log/slog"
 	"slices"
 	"strings"
 
@@ -18,36 +17,38 @@ import (
 
 type Session struct {
 	from            string
+	to              string
 	user            *users.UserItemRequestBuilder
 	client          *graph.GraphServiceClient
-	debug           bool
 	saveToSentItems bool
-	logger          *slog.Logger
-	logLevel        slog.Level
+	logger          Logger
+	logLevel        Level
 	allowedSenders  []string
+	helo            string
+	remote          string
+	errors          []error
+	status          string
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	if s.logger != nil {
-		s.logger = s.logger.With("from", from)
-	}
+	s.from = from
 
 	if s.client == nil {
-		if s.logger != nil {
-			s.logger = s.logger.With("mailerror", fmt.Errorf("graph client not initialised"))
-		}
-		s.logLevel = slog.LevelError
-		return fmt.Errorf("graph client not initialised")
+		err := errors.New("graph client not initialised")
+		s.errors = append(s.errors, err)
+		s.logLevel = LevelError
+
+		return err
 	}
 
 	// check that sender is allowed
 	if len(s.allowedSenders) > 0 {
 		if _, found := slices.BinarySearch(s.allowedSenders, from); !found {
-			if s.logger != nil {
-				s.logger = s.logger.With("mailerror", fmt.Errorf("sender not allowed"))
-			}
-			s.logLevel = slog.LevelError
-			return fmt.Errorf("sender not allowed")
+			err := errors.New("sender not allowed")
+			s.errors = append(s.errors, err)
+			s.logLevel = LevelError
+
+			return err
 		}
 	}
 
@@ -60,17 +61,16 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 	s.from = from
 
 	// Some error creating user object
-	if s.logger != nil {
-		s.logger = s.logger.With("mailerror", fmt.Errorf("user not found"))
-	}
-	s.logLevel = slog.LevelError
-	return fmt.Errorf("user not found")
+	err := errors.New("user not found")
+	s.errors = append(s.errors, err)
+	s.logLevel = LevelError
+
+	return err
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	if s.logger != nil {
-		s.logger = s.logger.With("to", to)
-	}
+	s.to = to
+
 	return nil
 }
 
@@ -78,10 +78,9 @@ func (s *Session) Data(r io.Reader) error {
 	// parse incoming message
 	msg, err := parsemail.Parse(r)
 	if err != nil {
-		if s.logger != nil {
-			s.logger = s.logger.With("dataerror", err)
-			s.logLevel = slog.LevelError
-		}
+		s.errors = append(s.errors, err)
+		s.logLevel = LevelError
+
 		return err
 	}
 
@@ -138,10 +137,9 @@ func (s *Session) Data(r io.Reader) error {
 	for _, a := range msg.Attachments {
 		data, err := io.ReadAll(a.Data)
 		if err != nil {
-			if s.logger != nil {
-				s.logger = s.logger.With("dataerror", err)
-				s.logLevel = slog.LevelError
-			}
+			s.errors = append(s.errors, err)
+			s.logLevel = LevelError
+
 			return err
 		}
 		attachment := models.NewFileAttachment()
@@ -165,18 +163,15 @@ func (s *Session) Data(r io.Reader) error {
 
 	// send it
 	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
-		if s.logger != nil {
-			s.logger = s.logger.With("dataerror", err)
-			s.logLevel = slog.LevelError
-		}
+		s.errors = append(s.errors, err)
+		s.logLevel = LevelError
+
 		return err
 	}
 
-	if s.logger != nil {
-		s.logger = s.logger.With("status", "message sent")
-		if s.logLevel < slog.LevelInfo {
-			s.logLevel = slog.LevelInfo
-		}
+	s.status = "message sent"
+	if s.logLevel < LevelInfo {
+		s.logLevel = LevelInfo
 	}
 
 	return nil
@@ -185,12 +180,12 @@ func (s *Session) Data(r io.Reader) error {
 func (s *Session) Reset() {
 	if s.logger != nil {
 		switch s.logLevel {
-		case slog.LevelError:
-			s.logger.Error("session ended")
-		case slog.LevelInfo:
-			s.logger.Info("session ended")
-		case slog.LevelWarn:
-			s.logger.Warn("session ended")
+		case LevelError:
+			s.logger.Error("session ended", "errors", s.errors, "from", s.from, "to", s.to)
+		case LevelInfo:
+			s.logger.Info("session ended", "status", s.status, "from", s.from, "to", s.to)
+		case LevelWarn:
+			s.logger.Warn("session ended", "status", s.status, "from", s.from, "to", s.to)
 		}
 	}
 }
