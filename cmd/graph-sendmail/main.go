@@ -5,15 +5,18 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/OfimaticSRL/parsemail"
+	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
 	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
-	graph "github.com/microsoftgraph/msgraph-sdk-go"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
 func main() {
+	// general options
+	pflag.String("config", "", "Configuration file")
+	pflag.Bool("debug", false, "Enable debugging")
+
 	// Entra ID options
 	pflag.String("clientid", "", "App Registration Client/Application ID")
 	pflag.String("tenantid", "", "App Registration Tenant ID")
@@ -28,19 +31,43 @@ func main() {
 	viper.AutomaticEnv()
 	viper.BindPFlags(pflag.CommandLine)
 
-	// create graph client
-	cred, err := azidentity.NewClientSecretCredential(
-		viper.GetString("tenantid"),
-		viper.GetString("clientId"),
-		viper.GetString("secret"),
-		nil,
-	)
-	if err != nil {
-		slog.Error("could not create a cred from a secret", "error", err)
-		os.Exit(1)
+	// set up logger
+	logLevel := new(slog.LevelVar)
+	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	slog.SetDefault(slog.New(h))
+	if viper.GetBool("debug") {
+		logLevel.Set(slog.LevelDebug)
 	}
 
-	client, err := graph.NewGraphServiceClientWithCredentials(cred, []string{"https://graph.microsoft.com/.default"})
+	// load config file
+	config := viper.GetString("config")
+	if config != "" {
+		viper.SetConfigFile(config)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath("/etc/graph-sendmail")
+		viper.AddConfigPath("$HOME/.graph-sendmail")
+		viper.AddConfigPath(".")
+	}
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			if config != "" {
+				slog.Error("config file not found", "error", err, "config", config)
+				os.Exit(1)
+			} else {
+				slog.Info("running without config")
+			}
+		} else {
+			slog.Error("config file was invalid", "error", err, "config", viper.ConfigFileUsed())
+			os.Exit(1)
+		}
+	} else {
+		slog.Info("config file loaded", "config", viper.ConfigFileUsed())
+	}
+
+	// create graph client
+	client, err := graphclient.NewClient(viper.GetString("tenantid"), viper.GetString("clientId"), viper.GetString("secret"))
 	if err != nil {
 		slog.Error("could not create graph client", "error", err)
 		os.Exit(1)
@@ -53,21 +80,32 @@ func main() {
 		os.Exit(1)
 	}
 
+	slog.Debug("message", "msg", msg)
+
 	// grab headers and content
 	header := msg.Header
 	subject := header.Get("Subject")
-	from := msg.Sender.String()
+	from := header.Get("From")
 	to := header.Get("To")
 	cc := header.Get("Cc")
 	bcc := header.Get("Bcc")
 
-	// create the request ready to POST
-	requestBody, err := sendmail.NewMessage(from, to, subject,
+	opts := []sendmail.MessageOption{
 		sendmail.WithCc(cc),
 		sendmail.WithBcc(bcc),
 		sendmail.WithAttachments(msg.Attachments),
 		sendmail.WithSaveToSentItems(viper.GetBool("sentitems")),
-	).SendMailPostRequestBody()
+	}
+
+	// handle HTML or text bodies
+	if msg.TextBody == "" {
+		opts = append(opts, sendmail.WithBody(msg.HTMLBody), sendmail.WithHTMLContent())
+	} else if msg.HTMLBody == "" {
+		opts = append(opts, sendmail.WithBody(msg.TextBody))
+	}
+
+	// create the request ready to POST
+	requestBody, err := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
 	if err != nil {
 		slog.Error("unable to create send email request", "error", err)
 		os.Exit(1)

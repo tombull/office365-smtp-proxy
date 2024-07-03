@@ -60,15 +60,40 @@ All command line options may be specified as environment variables in the form o
 
 All configuration options may be provided in a YAML or JSON configuration file that may be provided using the `--config` option or will be looked for in the current working directory as `config.<yaml|json>`.
 
+## CLI "sendmail" mode
+
+This is a "sendmail-ish" command line tool.
+
+### Building
+
+```sh
+go build github.com/andrewheberle/graph-smtpd/cmd/graph-sendmail
+```
+
+### Running
+
+```sh
+cat email.txt | ./graph-sendmail
+```
+
+### Command-Line Options
+
+* `--clientid`: Client/Application ID (string)
+* `--sentitems`: Save to senders sent items (bool)
+* `--secret`: Client Secret (string)
+* `--tenantid`: Tenant ID (string)
+* `--debug`: Enable debug logging (bool)
+
+All command line options may be specified as environment variables in the form of `SENDMAIL_<option>`.
+
 ## Status
 
 ### What works
 
-Based on limited testing, sending of plain text emails with or without an attachment works correctly.
+Based on limited testing, sending of plain text and HTML emails with or without an attachment works correctly.
 
 ### Untested
 
-* HTML emails
 * Multiple recipients
 * Multiple attachments
 * CC/BCC

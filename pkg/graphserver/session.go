@@ -5,13 +5,11 @@ import (
 	"errors"
 	"io"
 	"slices"
-	"strings"
 
 	"github.com/OfimaticSRL/parsemail"
+	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
 	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/emersion/go-smtp"
-	graph "github.com/microsoftgraph/msgraph-sdk-go"
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
 	"github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
@@ -19,7 +17,7 @@ type Session struct {
 	from            string
 	to              string
 	user            *users.UserItemRequestBuilder
-	client          *graph.GraphServiceClient
+	client          *graphclient.Client
 	saveToSentItems bool
 	logger          Logger
 	logLevel        Level
@@ -92,74 +90,29 @@ func (s *Session) Data(r io.Reader) error {
 	cc := header.Get("Cc")
 	bcc := header.Get("Bcc")
 
-	requestBody, err := sendmail.NewMessage(from, to, subject,
+	// message options
+	opts := []sendmail.MessageOption{
 		sendmail.WithCc(cc),
 		sendmail.WithBcc(bcc),
 		sendmail.WithAttachments(msg.Attachments),
 		sendmail.WithSaveToSentItems(s.saveToSentItems),
-	).SendMailPostRequestBody()
+	}
+
+	// handle HTML or text bodies
+	if msg.TextBody == "" {
+		opts = append(opts, sendmail.WithBody(msg.HTMLBody), sendmail.WithHTMLContent())
+	} else if msg.HTMLBody == "" {
+		opts = append(opts, sendmail.WithBody(msg.TextBody))
+	}
+
+	requestBody, err := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
 	if err != nil {
 		if s.logger != nil {
-			s.logger = s.logger.With("dataerror", err)
-			s.logLevel = slog.LevelError
+			s.errors = append(s.errors, err)
+			s.logLevel = LevelError
 		}
 		return err
 	}
-	/* body := models.NewItemBody()
-	body.SetContent(&msg.TextBody)
-
-	// build the message
-	message := models.NewMessage()
-	message.SetBody(body)
-	message.SetSubject(&subject)
-
-	if addrs := parseAddressList(to); len(addrs) > 0 {
-		message.SetToRecipients(addrs)
-	}
-
-	if addrs := parseAddressList(cc); len(addrs) > 0 {
-		message.SetCcRecipients(addrs)
-	}
-
-	if addrs := parseAddressList(bcc); len(addrs) > 0 {
-		message.SetBccRecipients(addrs)
-	}
-
-	// add sender/from
-	recipient := models.NewRecipient()
-	emailAddress := models.NewEmailAddress()
-	emailAddress.SetAddress(&from)
-	recipient.SetEmailAddress(emailAddress)
-	message.SetFrom(recipient)
-
-	// handle any attachments
-	attachments := []models.Attachmentable{}
-	for _, a := range msg.Attachments {
-		data, err := io.ReadAll(a.Data)
-		if err != nil {
-			s.errors = append(s.errors, err)
-			s.logLevel = LevelError
-
-			return err
-		}
-		attachment := models.NewFileAttachment()
-		attachment.SetName(&a.Filename)
-		attachment.SetContentType(&a.ContentType)
-		attachment.SetContentBytes(data)
-
-		// add to attachmentsList
-		attachments = append(attachments, attachment)
-	}
-
-	// add if any attachments
-	if len(attachments) > 0 {
-		message.SetAttachments(attachments)
-	}
-
-	// create sendMail request
-	requestBody := users.NewItemSendmailSendMailPostRequestBody()
-	requestBody.SetMessage(message)
-	requestBody.SetSaveToSentItems(&s.saveToSentItems) */
 
 	// send it
 	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
@@ -192,29 +145,4 @@ func (s *Session) Reset() {
 
 func (s *Session) Logout() error {
 	return nil
-}
-
-func parseAddressList(addresses string) []models.Recipientable {
-	recipientList := []models.Recipientable{}
-
-	if addresses == "" {
-		return recipientList
-	}
-
-	// Split the address list by commas and trim spaces
-	list := strings.Split(addresses, ",")
-	for i := range list {
-		address := strings.TrimSpace(list[i])
-
-		// build recipient
-		recipient := models.NewRecipient()
-		emailAddress := models.NewEmailAddress()
-		emailAddress.SetAddress(&address)
-		recipient.SetEmailAddress(emailAddress)
-
-		// add to list
-		recipientList = append(recipientList, recipient)
-	}
-
-	return recipientList
 }

@@ -5,14 +5,12 @@ import (
 	"net"
 	"slices"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
 	"github.com/emersion/go-smtp"
-	graph "github.com/microsoftgraph/msgraph-sdk-go"
 )
 
 type Backend struct {
-	client          *graph.GraphServiceClient
-	debug           bool
+	client          *graphclient.Client
 	saveToSentItems bool
 	logger          Logger
 	allowedSenders  []string
@@ -33,12 +31,7 @@ func newbackend(clientId, tenantId, secret string, opts ...BackendOption) (*Back
 	}
 
 	// create graph client
-	cred, err := azidentity.NewClientSecretCredential(tenantId, clientId, secret, nil)
-	if err != nil {
-		return nil, fmt.Errorf("could not create a cred from a secret: %w", err)
-	}
-
-	client, err := graph.NewGraphServiceClientWithCredentials(cred, []string{"https://graph.microsoft.com/.default"})
+	client, err := graphclient.NewClient(tenantId, clientId, secret)
 	if err != nil {
 		return nil, fmt.Errorf("could not create client: %w", err)
 	}

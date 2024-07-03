@@ -54,6 +54,7 @@ func main() {
 		viper.SetConfigFile(config)
 	} else {
 		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
 		viper.AddConfigPath(".")
 	}
 	if err := viper.ReadInConfig(); err != nil {
@@ -69,7 +70,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		logger.Error("config file loaded", "config", viper.ConfigFileUsed())
+		logger.Info("config file loaded", "config", viper.ConfigFileUsed())
 	}
 
 	// set backend options
