@@ -76,7 +76,7 @@ func main() {
 	} else {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("/etc/graph-sendmail")
+		viper.AddConfigPath("/etc/graph-sendmail/")
 		viper.AddConfigPath("$HOME/.graph-sendmail")
 		viper.AddConfigPath(".")
 	}
