@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 
@@ -16,6 +17,7 @@ func main() {
 	// general options
 	pflag.String("config", "", "Configuration file")
 	pflag.Bool("debug", false, "Enable debugging")
+	pflag.Bool("quiet", false, "Enable quiet mode (no logging)")
 
 	// Entra ID options
 	pflag.String("clientid", "", "App Registration Client/Application ID")
@@ -33,18 +35,36 @@ func main() {
 
 	// set up logger
 	logLevel := new(slog.LevelVar)
-	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: logLevel,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			// discard time
-			if a.Key == slog.TimeKey {
-				return slog.Attr{}
-			}
+	if viper.GetBool("quiet") {
+		// discard all log messages in quiet mode
+		h := slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
+			Level: logLevel,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				// discard time
+				if a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
 
-			return a
-		},
-	})
-	slog.SetDefault(slog.New(h))
+				return a
+			},
+		})
+		slog.SetDefault(slog.New(h))
+	} else {
+		// otherwise send to stdout
+		h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: logLevel,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				// discard time
+				if a.Key == slog.TimeKey {
+					return slog.Attr{}
+				}
+
+				return a
+			},
+		})
+		slog.SetDefault(slog.New(h))
+	}
+
 	if viper.GetBool("debug") {
 		logLevel.Set(slog.LevelDebug)
 	}

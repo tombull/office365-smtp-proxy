@@ -82,6 +82,7 @@ cat email.txt | ./graph-sendmail
 * `--sentitems`: Save to senders sent items (bool)
 * `--secret`: Client Secret (string)
 * `--tenantid`: Tenant ID (string)
+* `--quiet`: Silence any output (bool)
 * `--debug`: Enable debug logging (bool)
 
 All command line options may be specified as environment variables in the form of `SENDMAIL_<option>`.
