@@ -67,7 +67,7 @@ This is a "sendmail-ish" command line tool.
 ### Building
 
 ```sh
-go build github.com/andrewheberle/graph-smtpd/cmd/graph-sendmail
+go install github.com/andrewheberle/graph-smtpd/cmd/graph-sendmail@latest
 ```
 
 ### Running

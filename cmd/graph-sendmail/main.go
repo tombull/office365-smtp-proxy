@@ -33,7 +33,17 @@ func main() {
 
 	// set up logger
 	logLevel := new(slog.LevelVar)
-	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: logLevel,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// discard time
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+
+			return a
+		},
+	})
 	slog.SetDefault(slog.New(h))
 	if viper.GetBool("debug") {
 		logLevel.Set(slog.LevelDebug)
@@ -90,6 +100,15 @@ func main() {
 	cc := header.Get("Cc")
 	bcc := header.Get("Bcc")
 
+	logger := slog.With("from", from, "to", to, "subject", subject)
+	if cc != "" {
+		logger = logger.With("cc", cc)
+	}
+
+	if bcc != "" {
+		logger = logger.With("bcc", bcc)
+	}
+
 	opts := []sendmail.MessageOption{
 		sendmail.WithCc(cc),
 		sendmail.WithBcc(bcc),
@@ -99,21 +118,25 @@ func main() {
 
 	// handle HTML or text bodies
 	if msg.TextBody == "" {
+		logger = logger.With("size", len(msg.HTMLBody), "type", "text/html")
 		opts = append(opts, sendmail.WithBody(msg.HTMLBody), sendmail.WithHTMLContent())
 	} else if msg.HTMLBody == "" {
+		logger = logger.With("size", len(msg.TextBody), "type", "text/plain")
 		opts = append(opts, sendmail.WithBody(msg.TextBody))
 	}
 
 	// create the request ready to POST
 	requestBody, err := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
 	if err != nil {
-		slog.Error("unable to create send email request", "error", err)
+		logger.Error("unable to create send email request", "error", err)
 		os.Exit(1)
 	}
 
 	// send email
 	if err := client.Users().ByUserId(from).SendMail().Post(context.Background(), requestBody, nil); err != nil {
-		slog.Error("error sending email", "error", err)
+		logger.Error("error sending email", "error", err)
 		os.Exit(1)
 	}
+
+	logger.Info("message sent")
 }
