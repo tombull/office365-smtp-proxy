@@ -59,7 +59,7 @@ func WithAttachments(attachments []parsemail.Attachment) MessageOption {
 
 func WithSaveToSentItems(save bool) MessageOption {
 	return func(m *Message) {
-		m.saveToSentItems = save
+		m.requestBody.SetSaveToSentItems(&save)
 	}
 }
 

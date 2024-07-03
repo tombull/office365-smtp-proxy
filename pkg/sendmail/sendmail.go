@@ -8,9 +8,9 @@ import (
 )
 
 type Message struct {
-	body            *models.ItemBody
-	message         *models.Message
-	saveToSentItems bool
+	body        *models.ItemBody
+	message     *models.Message
+	requestBody *users.ItemSendmailSendMailPostRequestBody
 }
 
 func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
@@ -18,6 +18,7 @@ func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 
 	m.body = models.NewItemBody()
 	m.message = models.NewMessage()
+	m.requestBody = users.NewItemSendmailSendMailPostRequestBody()
 
 	// apply options
 	for _, o := range opts {
@@ -45,11 +46,9 @@ func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 
 func (m *Message) SendMailPostRequestBody() (*users.ItemSendmailSendMailPostRequestBody, error) {
 	// create SendMailPostRequestBody
-	requestBody := users.NewItemSendmailSendMailPostRequestBody()
-	requestBody.SetMessage(m.message)
-	requestBody.SetSaveToSentItems(&m.saveToSentItems)
+	m.requestBody.SetMessage(m.message)
 
-	return requestBody, nil
+	return m.requestBody, nil
 }
 
 func parseAddressList(addresses string) []models.Recipientable {
