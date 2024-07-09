@@ -13,6 +13,11 @@ type Client struct {
 
 // NewClient creates a new Graph API client
 func NewClient(tenantid, clientid, secret string) (*Client, error) {
+	// error checking
+	if tenantid == "" || clientid == "" || secret == "" {
+		return nil, fmt.Errorf("tenantid, clientid and secret must not be blank")
+	}
+
 	// create graph client
 	cred, err := azidentity.NewClientSecretCredential(tenantid, clientid, secret, nil)
 	if err != nil {
