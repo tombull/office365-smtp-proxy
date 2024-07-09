@@ -105,14 +105,8 @@ func (s *Session) Data(r io.Reader) error {
 		opts = append(opts, sendmail.WithBody(msg.TextBody))
 	}
 
-	requestBody, err := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
-	if err != nil {
-		if s.logger != nil {
-			s.errors = append(s.errors, err)
-			s.logLevel = LevelError
-		}
-		return err
-	}
+	// create POST request body
+	requestBody := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
 
 	// send it
 	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {

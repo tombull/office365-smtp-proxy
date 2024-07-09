@@ -44,11 +44,11 @@ func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 	return m
 }
 
-func (m *Message) SendMailPostRequestBody() (*users.ItemSendmailSendMailPostRequestBody, error) {
+func (m *Message) SendMailPostRequestBody() *users.ItemSendmailSendMailPostRequestBody {
 	// create SendMailPostRequestBody
 	m.requestBody.SetMessage(m.message)
 
-	return m.requestBody, nil
+	return m.requestBody
 }
 
 func parseAddressList(addresses string) []models.Recipientable {

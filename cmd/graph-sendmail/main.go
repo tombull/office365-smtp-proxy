@@ -120,6 +120,7 @@ func main() {
 	cc := header.Get("Cc")
 	bcc := header.Get("Bcc")
 
+	// add context to logger
 	logger := slog.With("from", from, "to", to, "subject", subject)
 	if cc != "" {
 		logger = logger.With("cc", cc)
@@ -146,11 +147,7 @@ func main() {
 	}
 
 	// create the request ready to POST
-	requestBody, err := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
-	if err != nil {
-		logger.Error("unable to create send email request", "error", err)
-		os.Exit(1)
-	}
+	requestBody := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
 
 	// send email
 	if err := client.Users().ByUserId(from).SendMail().Post(context.Background(), requestBody, nil); err != nil {
