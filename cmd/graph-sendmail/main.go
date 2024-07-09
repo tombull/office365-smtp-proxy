@@ -110,6 +110,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// with debug enabled show whole message
 	slog.Debug("message", "msg", msg)
 
 	// grab headers and content
@@ -117,24 +118,26 @@ func main() {
 	subject := header.Get("Subject")
 	from := header.Get("From")
 	to := header.Get("To")
-	cc := header.Get("Cc")
-	bcc := header.Get("Bcc")
+
+	// message options
+	opts := []sendmail.MessageOption{
+		sendmail.WithAttachments(msg.Attachments),
+		sendmail.WithSaveToSentItems(viper.GetBool("sentitems")),
+	}
 
 	// add context to logger
 	logger := slog.With("from", from, "to", to, "subject", subject)
-	if cc != "" {
+
+	// add Cc recipients
+	if cc := header.Get("Cc"); cc != "" {
 		logger = logger.With("cc", cc)
+		opts = append(opts, sendmail.WithCc(cc))
 	}
 
-	if bcc != "" {
+	// add Bcc recipients
+	if bcc := header.Get("Bcc"); bcc != "" {
 		logger = logger.With("bcc", bcc)
-	}
-
-	opts := []sendmail.MessageOption{
-		sendmail.WithCc(cc),
-		sendmail.WithBcc(bcc),
-		sendmail.WithAttachments(msg.Attachments),
-		sendmail.WithSaveToSentItems(viper.GetBool("sentitems")),
+		opts = append(opts, sendmail.WithBcc(bcc))
 	}
 
 	// handle HTML or text bodies
