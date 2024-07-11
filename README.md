@@ -54,7 +54,7 @@ docker run -p 25:2525 \
 * `--sources`: Allowed source IP addresses ([]string)
 * `--tenantid`: Tenant ID (string)
 
-All command line options may be specified as environment variables in the form of `SMTPD_<option>`.
+All command line options may be specified as environment variables in the form of `SMTPD_<option>`, with the additional option to supply `SMTPD_SECRET_FILE` to allow loading of the client secret from a file.
 
 ### Configuration File
 

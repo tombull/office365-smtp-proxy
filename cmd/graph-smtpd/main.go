@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/andrewheberle/graph-smtpd/pkg/graphserver"
 	"github.com/cloudflare/certinel/fswatcher"
@@ -79,6 +80,19 @@ func main() {
 		graphserver.WithAllowedSources(viper.GetStringSlice("sources")),
 		graphserver.WithSaveToSentItems(viper.GetBool("sentitems")),
 		graphserver.WithLogger(logger),
+	}
+
+	// check secret was set, otherwise try the _FILE variation
+	if viper.GetString("secret") == "" && viper.GetString("secret.file") != "" {
+		// read from SMTPD_SECRET_FILE
+		b, err := os.ReadFile(viper.GetString("secret.file"))
+		if err == nil {
+			// if that worked then set SMTPD_SECRET
+			viper.Set("secret", strings.TrimSpace(string(b)))
+		} else {
+			// not a fatal error at this point
+			slog.Warn("could not read", "secret.file", viper.GetString("secret.file"), "error", err)
+		}
 	}
 
 	// create backend
