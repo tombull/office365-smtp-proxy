@@ -140,7 +140,7 @@ func main() {
 			cancel()
 		})
 
-		// set up certiifcate watching for server
+		// set up certificate watching for server
 		s.TLSConfig = &tls.Config{
 			GetCertificate: certinel.GetCertificate,
 		}
