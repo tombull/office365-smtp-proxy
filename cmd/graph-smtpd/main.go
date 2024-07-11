@@ -84,15 +84,15 @@ func main() {
 	}
 
 	// check secret was set, otherwise try the _FILE variation
-	if viper.GetString("secret") == "" && viper.GetString("secret.file") != "" {
+	if viper.GetString("secret") == "" && viper.GetString("secret_file") != "" {
 		// read from SMTPD_SECRET_FILE
-		b, err := os.ReadFile(viper.GetString("secret.file"))
+		b, err := os.ReadFile(viper.GetString("secret_file"))
 		if err == nil {
 			// if that worked then set SMTPD_SECRET
 			viper.Set("secret", strings.TrimSpace(string(b)))
 		} else {
 			// not a fatal error at this point
-			logger.Warn("could not read", "secret.file", viper.GetString("secret.file"), "error", err)
+			logger.Warn("could not read", "secret_file", viper.GetString("secret_file"), "error", err)
 		}
 	}
 
