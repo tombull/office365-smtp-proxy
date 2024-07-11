@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/andrewheberle/graph-smtpd/pkg/graphserver"
+	"github.com/andrewheberle/redacted-string"
 	"github.com/cloudflare/certinel/fswatcher"
 	"github.com/emersion/go-smtp"
 	"github.com/oklog/run"
@@ -91,14 +92,19 @@ func main() {
 			viper.Set("secret", strings.TrimSpace(string(b)))
 		} else {
 			// not a fatal error at this point
-			slog.Warn("could not read", "secret.file", viper.GetString("secret.file"), "error", err)
+			logger.Warn("could not read", "secret.file", viper.GetString("secret.file"), "error", err)
 		}
 	}
 
 	// create backend
 	be, err := graphserver.NewGraphBackend(viper.GetString("clientid"), viper.GetString("tenantid"), viper.GetString("secret"), opts...)
 	if err != nil {
-		slog.Error("error setting up backend", "error", err)
+		logger.Error("error setting up backend",
+			"error", err,
+			"clientid", viper.GetString("clientid"),
+			"tenantid", viper.GetString("tenantid"),
+			"secret", redacted.Redacted(viper.GetString("secret")),
+		)
 		os.Exit(1)
 	}
 

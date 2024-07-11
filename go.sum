@@ -8,6 +8,8 @@ github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 h1:XHOnouVk1mx
 github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2/go.mod h1:wP83P5OoQ5p6ip3ScPr0BAq0BvuPAvacpEuSzyouqAI=
 github.com/OfimaticSRL/parsemail v0.0.0-20230321032643-37a2f96e6589 h1:eX/Kz/VwetbRXZ7Q4fuVLSol/uTuGEmofFpyCs9jpSE=
 github.com/OfimaticSRL/parsemail v0.0.0-20230321032643-37a2f96e6589/go.mod h1:MeyUFKQUXa5bD0bfy+wf3eMotz8NdY/VxXYOQkUuHFg=
+github.com/andrewheberle/redacted-string v0.0.0-20240711012922-1a7e3e5751cb h1:TCJXFgffkTeibGde9CIUd8RFJCcEMt6Z6bnu9RqqOWM=
+github.com/andrewheberle/redacted-string v0.0.0-20240711012922-1a7e3e5751cb/go.mod h1:A+qjv0GQYSYXhyNrS1wIsJPO5Sid3XmvCTDiacFytbE=
 github.com/cjlapao/common-go v0.0.39 h1:bAAUrj2B9v0kMzbAOhzjSmiyDy+rd56r2sy7oEiQLlA=
 github.com/cjlapao/common-go v0.0.39/go.mod h1:M3dzazLjTjEtZJbbxoA5ZDiGCiHmpwqW9l4UWaddwOA=
 github.com/cloudflare/certinel v0.4.1 h1:b0nGqKxEjCe6aS3SoZf0HwjkzfCCAqGzZj8iB9ZJGW0=
