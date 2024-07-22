@@ -1,6 +1,6 @@
 # graph-smtpd
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/andrewheberle/graph-smptd?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/andrewheberle/graph-smptd)
+[![Go Report Card](https://goreportcard.com/badge/github.com/andrewheberle/graph-smtpd?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/andrewheberle/graph-smtpd)
 
 **This is a work in progress and although it is functional, it may contain bugs. Use at your own risk**
 
