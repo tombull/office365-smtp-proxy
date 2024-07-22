@@ -1,5 +1,7 @@
 # graph-smtpd
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/andrewheberle/graph-smptd?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/andrewheberle/graph-smptd)
+
 **This is a work in progress and although it is functional, it may contain bugs. Use at your own risk**
 
 The planned functionality of this service is a SMTP daemon that will accept emails via SMTP and then submit them via the Microsoft Graph API to Microsoft 365, however in theory the submission process could be generalised to support any API driven email submission service.
