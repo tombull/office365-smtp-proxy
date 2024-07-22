@@ -10,13 +10,13 @@ import (
 	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
 	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/emersion/go-smtp"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	graphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
 type Session struct {
 	from            string
 	to              string
-	user            *users.UserItemRequestBuilder
+	user            *graphusers.UserItemRequestBuilder
 	client          *graphclient.Client
 	saveToSentItems bool
 	logger          Logger
@@ -105,11 +105,11 @@ func (s *Session) Data(r io.Reader) error {
 		opts = append(opts, sendmail.WithBody(msg.TextBody))
 	}
 
-	// create POST request body
-	requestBody := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
+	// create message to send
+	message := sendmail.NewMessage(from, to, subject, opts...)
 
 	// send it
-	if err := s.user.SendMail().Post(context.Background(), requestBody, nil); err != nil {
+	if err := message.Send(context.Background(), s.user); err != nil {
 		s.errors = append(s.errors, err)
 		s.logLevel = LevelError
 
