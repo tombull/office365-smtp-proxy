@@ -19,7 +19,7 @@ The idea is to allow this service to run locally and accept emails from devices/
 
 The App Registration requires the `mail.send` Graph API permission and to have admin consent granted in your tenant.
 
-This will allow the service to send as any users in your environment.
+This will allow the service to send as any user in your environment.
 
 To limit this ability to specific mailboxes/senders, it is possible to implement an `ApplicationAccessPolicy` to control this as follows:
 
