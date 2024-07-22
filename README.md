@@ -15,11 +15,11 @@ The idea is to allow this service to run locally and accept emails from devices/
 
 ### Permissions
 
-The App Registration requirs the `mail.send` Graph API permission and to have admin consent granted in your tenant.
+The App Registration requires the `mail.send` Graph API permission and to have admin consent granted in your tenant.
 
 This will allow the service to send as any users in your environment.
 
-To limit this ability to specific mailboxes/senders, it is possible to implement a `ApplicationAccessPolicy` to control this as follows:
+To limit this ability to specific mailboxes/senders, it is possible to implement an `ApplicationAccessPolicy` to control this as follows:
 
 1. Create a new mail enabled security group (or use an existing one)
 2. Add the mailboxes that the service is allowed to send as to the mail enabled security group
@@ -39,7 +39,7 @@ docker run -p 25:2525 \
     -e SMTPD_CLIENTID="clientid" \
     -e SMTPD_SECRET="secret" \
     -e SMTPD_TENANTID="tenantid" \
-    ghcr.io/andrewheberle/graph-smtpd:v0.2.0
+    ghcr.io/andrewheberle/graph-smtpd:v0.5.0
 ```
 
 ### Command-Line Options
