@@ -1,24 +1,25 @@
 package sendmail
 
 import (
+	"context"
 	"strings"
 
-	"github.com/microsoftgraph/msgraph-sdk-go/models"
-	"github.com/microsoftgraph/msgraph-sdk-go/users"
+	graphmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
+	graphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
 type Message struct {
-	body        *models.ItemBody
-	message     *models.Message
-	requestBody *users.ItemSendmailSendMailPostRequestBody
+	body        *graphmodels.ItemBody
+	message     *graphmodels.Message
+	requestBody *graphusers.ItemSendMailPostRequestBody
 }
 
 func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 	m := new(Message)
 
-	m.body = models.NewItemBody()
-	m.message = models.NewMessage()
-	m.requestBody = users.NewItemSendmailSendMailPostRequestBody()
+	m.body = graphmodels.NewItemBody()
+	m.message = graphmodels.NewMessage()
+	m.requestBody = graphusers.NewItemSendMailPostRequestBody()
 
 	// apply options
 	for _, o := range opts {
@@ -30,8 +31,8 @@ func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 	m.message.SetBody(m.body)
 
 	// add sender/from
-	recipient := models.NewRecipient()
-	emailAddress := models.NewEmailAddress()
+	recipient := graphmodels.NewRecipient()
+	emailAddress := graphmodels.NewEmailAddress()
 	emailAddress.SetAddress(&from)
 	recipient.SetEmailAddress(emailAddress)
 	m.message.SetFrom(recipient)
@@ -44,15 +45,15 @@ func NewMessage(from, to, subject string, opts ...MessageOption) *Message {
 	return m
 }
 
-func (m *Message) SendMailPostRequestBody() *users.ItemSendmailSendMailPostRequestBody {
+func (m *Message) Send(ctx context.Context, user *graphusers.UserItemRequestBuilder) error {
 	// create SendMailPostRequestBody
 	m.requestBody.SetMessage(m.message)
 
-	return m.requestBody
+	return user.SendMail().Post(context.Background(), m.requestBody, nil)
 }
 
-func parseAddressList(addresses string) []models.Recipientable {
-	recipientList := []models.Recipientable{}
+func parseAddressList(addresses string) []graphmodels.Recipientable {
+	recipientList := []graphmodels.Recipientable{}
 
 	if addresses == "" {
 		return recipientList
@@ -64,8 +65,8 @@ func parseAddressList(addresses string) []models.Recipientable {
 		address := strings.TrimSpace(list[i])
 
 		// build recipient
-		recipient := models.NewRecipient()
-		emailAddress := models.NewEmailAddress()
+		recipient := graphmodels.NewRecipient()
+		emailAddress := graphmodels.NewEmailAddress()
 		emailAddress.SetAddress(&address)
 		recipient.SetEmailAddress(emailAddress)
 

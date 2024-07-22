@@ -150,10 +150,13 @@ func main() {
 	}
 
 	// create the request ready to POST
-	requestBody := sendmail.NewMessage(from, to, subject, opts...).SendMailPostRequestBody()
+	message := sendmail.NewMessage(from, to, subject, opts...)
+
+	// create user object
+	user := client.Users().ByUserId(from)
 
 	// send email
-	if err := client.Users().ByUserId(from).SendMail().Post(context.Background(), requestBody, nil); err != nil {
+	if err := message.Send(context.Background(), user); err != nil {
 		logger.Error("error sending email", "error", err)
 		os.Exit(1)
 	}
