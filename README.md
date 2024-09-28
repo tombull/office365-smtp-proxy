@@ -97,7 +97,6 @@ Based on limited testing, sending of plain text and HTML emails with or without 
 
 ### Untested
 
-* Multiple recipients
 * Multiple attachments
 * CC/BCC
 
@@ -107,3 +106,5 @@ Based on limited testing, sending of plain text and HTML emails with or without 
 * Message queueing (if this is even a good idea)
 * SMTP authentication
 * Allow running as a service on Windows
+* Test with wider variety of devices
+* Implement unit tests
