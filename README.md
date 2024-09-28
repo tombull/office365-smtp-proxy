@@ -60,7 +60,7 @@ All command line options may be specified as environment variables in the form o
 
 ### Configuration File
 
-All configuration options may be provided in a YAML or JSON configuration file that may be provided using the `--config` option or if this is not set, will be looked for in the current working directory as `config.yaml`.
+All configuration options may be provided in a YAML or JSON configuration file using the `--config` command-line option or if this is not set, will be looked for in the current working directory as `config.yaml`.
 
 ## CLI "sendmail" mode
 
