@@ -49,7 +49,7 @@ func (m *Message) Send(ctx context.Context, user *graphusers.UserItemRequestBuil
 	// create SendMailPostRequestBody
 	m.requestBody.SetMessage(m.message)
 
-	return user.SendMail().Post(context.Background(), m.requestBody, nil)
+	return user.SendMail().Post(ctx, m.requestBody, nil)
 }
 
 func parseAddressList(addresses string) []graphmodels.Recipientable {
