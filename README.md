@@ -95,10 +95,7 @@ All command line options may be specified as environment variables in the form o
 
 Based on limited testing, sending of plain text and HTML emails with or without an attachment works correctly.
 
-### Untested
-
-* Multiple attachments
-* CC/BCC
+Sending to one or more recipients via Cc/Bcc also works. 
 
 ### TODO
 
