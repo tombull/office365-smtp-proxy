@@ -8,7 +8,7 @@ require (
 	github.com/andrewheberle/redacted-string v1.0.0
 	github.com/cloudflare/certinel v0.4.1
 	github.com/emersion/go-smtp v0.21.3
-	github.com/microsoftgraph/msgraph-sdk-go v1.52.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.57.0
 	github.com/oklog/run v1.1.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
@@ -33,7 +33,7 @@ require (
 	github.com/microsoft/kiota-authentication-azure-go v1.1.0 // indirect
 	github.com/microsoft/kiota-http-go v1.4.4 // indirect
 	github.com/microsoft/kiota-serialization-form-go v1.0.0 // indirect
-	github.com/microsoft/kiota-serialization-json-go v1.0.8 // indirect
+	github.com/microsoft/kiota-serialization-json-go v1.0.9 // indirect
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1 // indirect
