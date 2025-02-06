@@ -39,7 +39,7 @@ docker run -p 25:2525 \
     -e SMTPD_CLIENTID="clientid" \
     -e SMTPD_SECRET="secret" \
     -e SMTPD_TENANTID="tenantid" \
-    ghcr.io/andrewheberle/graph-smtpd:v0.5.0
+    ghcr.io/andrewheberle/graph-smtpd:v0.6.1
 ```
 
 ### Command-Line Options
