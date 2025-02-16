@@ -18,6 +18,8 @@ type Backend struct {
 	allowedSenders  []string
 	allowedSources  []string
 
+	reg prometheus.Registerer
+
 	sent       prometheus.Counter
 	sendErrors prometheus.Counter
 	sendDenied prometheus.Counter
@@ -52,6 +54,26 @@ func newbackend(clientId, tenantId, secret string, opts ...BackendOption) (*Back
 	if b.allowedSources == nil {
 		b.allowedSources = make([]string, 0)
 	}
+
+	// set up metrics
+	b.sent = promauto.With(b.reg).NewCounter(
+		prometheus.CounterOpts{
+			Name: "graph_smtpd_sent_total",
+			Help: "Total number of messages sent",
+		},
+	)
+	b.sendErrors = promauto.With(b.reg).NewCounter(
+		prometheus.CounterOpts{
+			Name: "graph_smtpd_send_errors_total",
+			Help: "Total number of send errors",
+		},
+	)
+	b.sendDenied = promauto.With(b.reg).NewCounter(
+		prometheus.CounterOpts{
+			Name: "graph_smtpd_send_denied_total",
+			Help: "Total number of send denied messages",
+		},
+	)
 
 	return b, nil
 }
@@ -122,23 +144,6 @@ func WithLogger(logger Logger) BackendOption {
 
 func WithPrometheusRegistry(reg *prometheus.Registry) BackendOption {
 	return func(b *Backend) {
-		b.sent = promauto.With(reg).NewCounter(
-			prometheus.CounterOpts{
-				Name: "graph_smtp_sent_total",
-				Help: "Total number of messages sent",
-			},
-		)
-		b.sendErrors = promauto.With(reg).NewCounter(
-			prometheus.CounterOpts{
-				Name: "graph_smtp_senderrors_total",
-				Help: "Total number of send errors",
-			},
-		)
-		b.sendDenied = promauto.With(reg).NewCounter(
-			prometheus.CounterOpts{
-				Name: "graph_smtp_senddenied_total",
-				Help: "Total number of send denied messages",
-			},
-		)
+		b.reg = reg
 	}
 }
