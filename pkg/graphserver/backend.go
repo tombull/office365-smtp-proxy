@@ -7,6 +7,8 @@ import (
 
 	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
 	"github.com/emersion/go-smtp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 type Backend struct {
@@ -15,6 +17,10 @@ type Backend struct {
 	logger          Logger
 	allowedSenders  []string
 	allowedSources  []string
+
+	sent       prometheus.Counter
+	sendErrors prometheus.Counter
+	sendDenied prometheus.Counter
 }
 
 // NewGraphBackend sets up a new server
@@ -70,6 +76,9 @@ func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
 		helo:            c.Hostname(),
 		remote:          c.Conn().RemoteAddr().String(),
 		errors:          make([]error, 0),
+		sent:            b.sent,
+		sendErrors:      b.sendErrors,
+		sendDenied:      b.sendDenied,
 	}, nil
 }
 
@@ -108,5 +117,28 @@ func WithAllowedSources(sources []string) BackendOption {
 func WithLogger(logger Logger) BackendOption {
 	return func(b *Backend) {
 		b.logger = logger
+	}
+}
+
+func WithPrometheusRegistry(reg *prometheus.Registry) BackendOption {
+	return func(b *Backend) {
+		b.sent = promauto.With(reg).NewCounter(
+			prometheus.CounterOpts{
+				Name: "graph_smtp_sent_total",
+				Help: "Total number of messages sent",
+			},
+		)
+		b.sendErrors = promauto.With(reg).NewCounter(
+			prometheus.CounterOpts{
+				Name: "graph_smtp_senderrors_total",
+				Help: "Total number of send errors",
+			},
+		)
+		b.sendDenied = promauto.With(reg).NewCounter(
+			prometheus.CounterOpts{
+				Name: "graph_smtp_senddenied_total",
+				Help: "Total number of send denied messages",
+			},
+		)
 	}
 }

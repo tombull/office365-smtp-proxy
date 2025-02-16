@@ -11,6 +11,7 @@ import (
 	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/emersion/go-smtp"
 	graphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Session struct {
@@ -26,6 +27,10 @@ type Session struct {
 	remote          string
 	errors          []error
 	status          string
+
+	sent       prometheus.Counter
+	sendErrors prometheus.Counter
+	sendDenied prometheus.Counter
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
@@ -35,6 +40,9 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 		err := errors.New("graph client not initialised")
 		s.errors = append(s.errors, err)
 		s.logLevel = LevelError
+
+		// increment metric
+		s.sendErrors.Inc()
 
 		return err
 	}
@@ -46,6 +54,9 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 			s.errors = append(s.errors, err)
 			s.logLevel = LevelError
 
+			// increment metric
+			s.sendDenied.Inc()
+
 			return err
 		}
 	}
@@ -56,12 +67,13 @@ func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
 		return nil
 	}
 
-	s.from = from
-
 	// Some error creating user object
 	err := errors.New("user not found")
 	s.errors = append(s.errors, err)
 	s.logLevel = LevelError
+
+	// increment metric
+	s.sendErrors.Inc()
 
 	return err
 }
@@ -78,6 +90,9 @@ func (s *Session) Data(r io.Reader) error {
 	if err != nil {
 		s.errors = append(s.errors, err)
 		s.logLevel = LevelError
+
+		// increment metric
+		s.sendErrors.Inc()
 
 		return err
 	}
@@ -113,6 +128,9 @@ func (s *Session) Data(r io.Reader) error {
 		s.errors = append(s.errors, err)
 		s.logLevel = LevelError
 
+		// increment metric
+		s.sendErrors.Inc()
+
 		return err
 	}
 
@@ -120,6 +138,9 @@ func (s *Session) Data(r io.Reader) error {
 	if s.logLevel < LevelInfo {
 		s.logLevel = LevelInfo
 	}
+
+	// increment sent metric
+	s.sent.Inc()
 
 	return nil
 }

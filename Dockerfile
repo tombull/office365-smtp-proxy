@@ -9,8 +9,9 @@ FROM gcr.io/distroless/base-debian12:nonroot@sha256:97d15218016debb9b6700a8c1c26
 
 COPY --from=builder /build/graph-smtpd /app/graph-smtpd
 
-ENV SMTPD_ADDR=":2525"
+ENV SMTPD_ADDR=":2525" \
+    SMTPD_METRICS=":8080"
 
-EXPOSE 2525
+EXPOSE 2525 8080
 
 ENTRYPOINT [ "/app/graph-smtpd" ]

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 
@@ -12,6 +13,9 @@ import (
 	"github.com/cloudflare/certinel/fswatcher"
 	"github.com/emersion/go-smtp"
 	"github.com/oklog/run"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -40,6 +44,11 @@ func main() {
 	pflag.String("clientid", "", "App Registration Client/Application ID")
 	pflag.String("tenantid", "", "App Registration Tenant ID")
 	pflag.String("secret", "", "App Registration Client Secret")
+
+	// metrics
+	pflag.String("metrics", "", "Listen address for metrics")
+
+	// parse flags
 	pflag.Parse()
 
 	// set up logger
@@ -81,6 +90,18 @@ func main() {
 		graphserver.WithAllowedSources(viper.GetStringSlice("sources")),
 		graphserver.WithSaveToSentItems(viper.GetBool("sentitems")),
 		graphserver.WithLogger(logger),
+	}
+
+	// set up metrics
+	metrics := viper.GetString("metrics")
+	if metrics != "" {
+		reg := prometheus.NewRegistry()
+		reg.MustRegister(
+			collectors.NewGoCollector(),
+			collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+		)
+		http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}))
+		opts = append(opts, graphserver.WithPrometheusRegistry(reg))
 	}
 
 	// check secret was set, otherwise try the _FILE variation
@@ -144,6 +165,19 @@ func main() {
 		s.TLSConfig = &tls.Config{
 			GetCertificate: certinel.GetCertificate,
 		}
+	}
+
+	// set up metrics http listener if set
+	if metrics != "" {
+		g.Add(func() error {
+			logger.Info("starting up", "from", "metrics", "addr", metrics)
+			return http.ListenAndServe(metrics, nil)
+		}, func(err error) {
+			if err != nil {
+				logger.Error("error on exit", "from", "metrics", "error", err)
+			}
+			s.Close()
+		})
 	}
 
 	// add SMTP server
