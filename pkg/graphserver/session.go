@@ -28,7 +28,6 @@ type Session struct {
 	errors          []error
 	status          string
 
-	sent       prometheus.Counter
 	sendErrors prometheus.Counter
 	sendDenied prometheus.Counter
 }
@@ -138,9 +137,6 @@ func (s *Session) Data(r io.Reader) error {
 	if s.logLevel < LevelInfo {
 		s.logLevel = LevelInfo
 	}
-
-	// increment sent metric
-	s.sent.Inc()
 
 	return nil
 }

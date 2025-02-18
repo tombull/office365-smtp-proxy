@@ -20,7 +20,8 @@ type Backend struct {
 
 	reg prometheus.Registerer
 
-	sent       prometheus.Counter
+	// metrics
+	emailTotal prometheus.Counter
 	sendErrors prometheus.Counter
 	sendDenied prometheus.Counter
 }
@@ -56,22 +57,22 @@ func newbackend(clientId, tenantId, secret string, opts ...BackendOption) (*Back
 	}
 
 	// set up metrics
-	b.sent = promauto.With(b.reg).NewCounter(
+	b.emailTotal = promauto.With(b.reg).NewCounter(
 		prometheus.CounterOpts{
-			Name: "graph_smtpd_sent_total",
-			Help: "Total number of messages sent",
+			Name: "graph_smtpd_email_total",
+			Help: "Total number of emails accepted by SMTP",
 		},
 	)
 	b.sendErrors = promauto.With(b.reg).NewCounter(
 		prometheus.CounterOpts{
-			Name: "graph_smtpd_send_errors_total",
+			Name: "graph_smtpd_email_errors_total",
 			Help: "Total number of send errors",
 		},
 	)
 	b.sendDenied = promauto.With(b.reg).NewCounter(
 		prometheus.CounterOpts{
-			Name: "graph_smtpd_send_denied_total",
-			Help: "Total number of send denied messages",
+			Name: "graph_smtpd_email_denied_total",
+			Help: "Total number of emails denied",
 		},
 	)
 
@@ -84,10 +85,14 @@ func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
 	if len(b.allowedSources) > 0 {
 		if addr, _, err := net.SplitHostPort(c.Conn().RemoteAddr().String()); err == nil {
 			if _, found := slices.BinarySearch(b.allowedSources, addr); !found {
+				b.sendDenied.Inc()
 				return nil, fmt.Errorf("source not allowed")
 			}
 		}
 	}
+
+	// increment total metric
+	b.emailTotal.Inc()
 
 	// return new session
 	return &Session{
@@ -98,7 +103,6 @@ func (b *Backend) NewSession(c *smtp.Conn) (smtp.Session, error) {
 		helo:            c.Hostname(),
 		remote:          c.Conn().RemoteAddr().String(),
 		errors:          make([]error, 0),
-		sent:            b.sent,
 		sendErrors:      b.sendErrors,
 		sendDenied:      b.sendDenied,
 	}, nil
