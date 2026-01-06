@@ -29,7 +29,7 @@ func main() {
 	pflag.String("addr", "localhost:2525", "Service listen address")
 	pflag.String("domain", "localhost", "Service domain/hostname")
 	pflag.Int("recipients", 10, "Maximum message recipients")
-	pflag.Int64("max", 1024*1024, "Maximum message size in bytes")
+	pflag.Int64("max", 1024*1024*20, "Maximum message size in bytes")
 	pflag.Bool("sentitems", false, "Save to sent items in senders mailbox")
 
 	// Access controls
