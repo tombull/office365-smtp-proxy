@@ -1,4 +1,4 @@
-module github.com/andrewheberle/graph-smtpd
+module github.com/tombull/office365-smtp-proxy
 
 go 1.24.0
 

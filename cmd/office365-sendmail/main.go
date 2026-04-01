@@ -7,10 +7,10 @@ import (
 	"os"
 
 	"github.com/OfimaticSRL/parsemail"
-	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
-	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/tombull/office365-smtp-proxy/pkg/graphclient"
+	"github.com/tombull/office365-smtp-proxy/pkg/sendmail"
 )
 
 func main() {
@@ -76,8 +76,8 @@ func main() {
 	} else {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("/etc/graph-sendmail/")
-		viper.AddConfigPath("$HOME/.graph-sendmail")
+		viper.AddConfigPath("/etc/office365-sendmail/")
+		viper.AddConfigPath("$HOME/.office365-sendmail")
 		viper.AddConfigPath(".")
 	}
 	if err := viper.ReadInConfig(); err != nil {

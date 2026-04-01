@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/andrewheberle/graph-smtpd/pkg/graphserver"
 	"github.com/andrewheberle/redacted-string"
 	"github.com/cloudflare/certinel/fswatcher"
 	"github.com/emersion/go-smtp"
@@ -18,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"github.com/tombull/office365-smtp-proxy/pkg/graphserver"
 )
 
 func main() {
@@ -30,10 +30,10 @@ func main() {
 	pflag.String("domain", "localhost", "Service domain/hostname")
 	pflag.Int("recipients", 10, "Maximum message recipients")
 	pflag.Int64("max", 1024*1024*20, "Maximum message size in bytes")
-	pflag.Bool("sentitems", false, "Save to sent items in senders mailbox")
 
 	// Access controls
 	pflag.StringSlice("senders", []string{}, "List of allowed senders")
+	pflag.String("senduser", "", "Graph user ID to send as for all relayed messages")
 	pflag.StringSlice("sources", []string{}, "Source IP addresses allowed to relay")
 
 	// TLS options
@@ -55,7 +55,7 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// viper setup
-	viper.SetEnvPrefix("smtpd")
+	viper.SetEnvPrefix("office365_smtp_proxy")
 	viper.AutomaticEnv()
 	viper.BindPFlags(pflag.CommandLine)
 
@@ -87,8 +87,8 @@ func main() {
 	// set backend options
 	opts := []graphserver.BackendOption{
 		graphserver.WithAllowedSenders(viper.GetStringSlice("senders")),
+		graphserver.WithSendUser(viper.GetString("senduser")),
 		graphserver.WithAllowedSources(viper.GetStringSlice("sources")),
-		graphserver.WithSaveToSentItems(viper.GetBool("sentitems")),
 		graphserver.WithLogger(logger),
 	}
 
@@ -106,10 +106,10 @@ func main() {
 
 	// check secret was set, otherwise try the _FILE variation
 	if viper.GetString("secret") == "" && viper.GetString("secret_file") != "" {
-		// read from SMTPD_SECRET_FILE
+		// read from OFFICE365_SMTP_PROXY_SECRET_FILE
 		b, err := os.ReadFile(viper.GetString("secret_file"))
 		if err == nil {
-			// if that worked then set SMTPD_SECRET
+			// if that worked then set OFFICE365_SMTP_PROXY_SECRET
 			viper.Set("secret", strings.TrimSpace(string(b)))
 		} else {
 			// not a fatal error at this point
@@ -129,7 +129,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info("graph backend created")
+	logger.Info("Office365 SMTP Proxy backend created")
 
 	// set up server
 	s := smtp.NewServer(be)

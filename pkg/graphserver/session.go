@@ -3,134 +3,92 @@ package graphserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"slices"
+	"strings"
 
-	"github.com/OfimaticSRL/parsemail"
-	"github.com/andrewheberle/graph-smtpd/pkg/graphclient"
-	"github.com/andrewheberle/graph-smtpd/pkg/sendmail"
 	"github.com/emersion/go-smtp"
-	graphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/tombull/office365-smtp-proxy/pkg/graphclient"
 )
 
 type Session struct {
-	from            string
-	to              string
-	user            *graphusers.UserItemRequestBuilder
-	client          *graphclient.Client
-	saveToSentItems bool
-	logger          Logger
-	logLevel        Level
-	allowedSenders  []string
-	helo            string
-	remote          string
-	errors          []error
-	status          string
+	from           string
+	recipients     []string
+	graphUser      string
+	client         *graphclient.Client
+	logger         Logger
+	logLevel       Level
+	allowedSenders []string
+	sendUser       string
+	helo           string
+	remote         string
+	errors         []error
+	status         string
 
 	sendErrors prometheus.Counter
 	sendDenied prometheus.Counter
 }
 
 func (s *Session) Mail(from string, opts *smtp.MailOptions) error {
-	s.from = from
-
 	if s.client == nil {
-		err := errors.New("graph client not initialised")
-		s.errors = append(s.errors, err)
-		s.logLevel = LevelError
+		return s.fail(errors.New("graph client not initialised"), false)
+	}
 
-		// increment metric
-		s.sendErrors.Inc()
-
-		return err
+	normalizedFrom, err := normalizeMailbox(from)
+	if err != nil {
+		return s.fail(fmt.Errorf("invalid MAIL FROM address %q: %w", from, err), true)
+	}
+	s.from = normalizedFrom
+	s.graphUser = s.from
+	if s.sendUser != "" {
+		s.graphUser = s.sendUser
 	}
 
 	// check that sender is allowed
 	if len(s.allowedSenders) > 0 {
-		if _, found := slices.BinarySearch(s.allowedSenders, from); !found {
-			err := errors.New("sender not allowed")
-			s.errors = append(s.errors, err)
-			s.logLevel = LevelError
-
-			// increment metric
-			s.sendDenied.Inc()
-
-			return err
+		if _, found := slices.BinarySearch(s.allowedSenders, s.from); !found {
+			return s.fail(fmt.Errorf("sender %q not allowed", s.from), true)
 		}
 	}
 
-	// get UserItemRequestBuilder
-	if user := s.client.Users().ByUserId(from); user != nil {
-		s.user = user
-		return nil
-	}
-
-	// Some error creating user object
-	err := errors.New("user not found")
-	s.errors = append(s.errors, err)
-	s.logLevel = LevelError
-
-	// increment metric
-	s.sendErrors.Inc()
-
-	return err
+	s.recipients = s.recipients[:0]
+	return nil
 }
 
 func (s *Session) Rcpt(to string, opts *smtp.RcptOptions) error {
-	s.to = to
+	normalizedTo, err := normalizeMailbox(to)
+	if err != nil {
+		return s.fail(fmt.Errorf("invalid RCPT TO address %q: %w", to, err), true)
+	}
+
+	s.recipients = append(s.recipients, normalizedTo)
 
 	return nil
 }
 
 func (s *Session) Data(r io.Reader) error {
-	// parse incoming message
-	msg, err := parsemail.Parse(r)
+	if s.from == "" {
+		return s.fail(errors.New("message missing MAIL FROM envelope"), true)
+	}
+
+	if len(s.recipients) == 0 {
+		return s.fail(errors.New("message missing RCPT TO recipients"), true)
+	}
+
+	rawMessage, err := io.ReadAll(r)
 	if err != nil {
-		s.errors = append(s.errors, err)
-		s.logLevel = LevelError
-
-		// increment metric
-		s.sendErrors.Inc()
-
-		return err
+		return s.fail(fmt.Errorf("could not read message data: %w", err), false)
 	}
 
-	// grab headers and content
-	header := msg.Header
-	subject := header.Get("Subject")
-	from := s.from
-	to := header.Get("To")
-	cc := header.Get("Cc")
-	bcc := header.Get("Bcc")
-
-	// message options
-	opts := []sendmail.MessageOption{
-		sendmail.WithCc(cc),
-		sendmail.WithBcc(bcc),
-		sendmail.WithAttachments(msg.Attachments),
-		sendmail.WithSaveToSentItems(s.saveToSentItems),
+	payload, err := prepareGraphMIME(rawMessage, s.from, s.recipients)
+	if err != nil {
+		return s.fail(fmt.Errorf("rejected MIME message: %w", err), true)
 	}
 
-	// handle HTML or text bodies
-	if msg.TextBody == "" {
-		opts = append(opts, sendmail.WithBody(msg.HTMLBody), sendmail.WithHTMLContent())
-	} else if msg.HTMLBody == "" {
-		opts = append(opts, sendmail.WithBody(msg.TextBody))
-	}
-
-	// create message to send
-	message := sendmail.NewMessage(from, to, subject, opts...)
-
-	// send it
-	if err := message.Send(context.Background(), s.user); err != nil {
-		s.errors = append(s.errors, err)
-		s.logLevel = LevelError
-
-		// increment metric
-		s.sendErrors.Inc()
-
-		return err
+	if err := s.client.SendMime(context.Background(), s.graphUser, s.from, payload); err != nil {
+		return s.fail(fmt.Errorf("error sending MIME message: %w", err), false)
 	}
 
 	s.status = "message sent"
@@ -143,17 +101,37 @@ func (s *Session) Data(r io.Reader) error {
 
 func (s *Session) Reset() {
 	if s.logger != nil {
+		to := strings.Join(s.recipients, ",")
 		switch s.logLevel {
 		case LevelError:
-			s.logger.Error("session ended", "errors", s.errors, "from", s.from, "to", s.to)
+			s.logger.Error("session ended", "errors", s.errors, "from", s.from, "graph_user", s.graphUser, "to", to)
 		case LevelInfo:
-			s.logger.Info("session ended", "status", s.status, "from", s.from, "to", s.to)
+			s.logger.Info("session ended", "status", s.status, "from", s.from, "graph_user", s.graphUser, "to", to)
 		case LevelWarn:
-			s.logger.Warn("session ended", "status", s.status, "from", s.from, "to", s.to)
+			s.logger.Warn("session ended", "status", s.status, "from", s.from, "graph_user", s.graphUser, "to", to)
 		}
 	}
+
+	s.from = ""
+	s.recipients = s.recipients[:0]
+	s.graphUser = ""
+	s.errors = s.errors[:0]
+	s.status = ""
+	s.logLevel = LevelInfo
 }
 
 func (s *Session) Logout() error {
 	return nil
+}
+
+func (s *Session) fail(err error, denied bool) error {
+	s.errors = append(s.errors, err)
+	s.logLevel = LevelError
+	if denied {
+		s.sendDenied.Inc()
+	} else {
+		s.sendErrors.Inc()
+	}
+
+	return err
 }
